@@ -1,0 +1,101 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+library(magrittr)
+library(tm)
+library(tidyverse)
+library(plyr)
+library(SnowballC)
+library(tokenizers)
+ 
+ 
+cname <- file.path('/Users/aleksandr/Desktop/Alimov EDA/eda2/texts')
+cname
+dir(cname)
+docs <- VCorpus(DirSource(cname))   
+summary(docs)  
+inspect(docs[100])
+writeLines(as.character(docs[100]))
+docs <- tm_map(docs,removePunctuation)
+for (j in seq(docs))
+    {
+    docs[[j]] <- gsub("/", " ", docs[[j]])
+    docs[[j]] <- gsub("@", " ", docs[[j]])
+    }
+writeLines(as.character(docs[100]))
+
+docs <- tm_map(docs, removeNumbers)
+
+docs <- tm_map(docs, tolower)   
+docs <- tm_map(docs, PlainTextDocument)
+
+stopwords = read.table("stopwords.dat",header=FALSE,stringsAsFactors=FALSE)$V1
+
+docs <- tm_map(docs, removeWords, stopwords)  
+docs <- tm_map(docs, PlainTextDocument)
+docs <- tm_map(docs, removeWords, c('t'))
+
+dtm <- DocumentTermMatrix(docs)   
+dtm  
+tdm <- TermDocumentMatrix(docs)   
+tdm   
+dtms <- removeSparseTerms(dtm, 0.2) 
+dtms
+freq = sort(colSums(as.matrix(dtm)), decreasing=TRUE)   
+freq2 =  dtms %>% as.matrix () %>% colSums () %>% sort(decreasing = T) %>% data.frame ()
+head(freq, 20)  
+word = c('said', 'lord', 'ser', 'man', "back", "men", "see", "king", 'eyes', 'never', 
+'told', 'know', 'father', 'old', 'black', 'thought', 'time', 'fire', 'face', 'brother')
+length(word)
+word <- data.frame(lapply(word, as.character), stringsAsFactors=FALSE)
+word = t(word)
+word = data.frame(word)
+dtm.tfidf <- docs %>% DocumentTermMatrix
+dtm.tfidf <- dtm.tfidf %>% removeSparseTerms(0.95)
+freq.df.tfidf <- dtm.tfidf %>% as.matrix() %>% colSums() %>% sort(decreasing = T) %>% data.frame()
+
+all_t
+class(all_t)
+all_t$said = as.numeric(as.character(all_t$said))
+all_t$lord = as.numeric(as.character(all_t$lord))
+all_t$ser = as.numeric(as.character(all_t$ser))
+all_t$back = as.numeric(as.character(all_t$back))
+all_t$men = as.numeric(as.character(all_t$men))
+all_t$man = as.numeric(as.character(all_t$man))
+all_t$see = as.numeric(as.character(all_t$see))
+all_t$king = as.numeric(as.character(all_t$king))
+all_t$eyes = as.numeric(as.character(all_t$eyes))
+all_t$never = as.numeric(as.character(all_t$never))
+all_t$told = as.numeric(as.character(all_t$told))
+all_t$know = as.numeric(as.character(all_t$know))
+all_t$father = as.numeric(as.character(all_t$father))
+all_t$old = as.numeric(as.character(all_t$old))
+all_t$black = as.numeric(as.character(all_t$black))
+all_t$thought = as.numeric(as.character(all_t$thought))
+all_t$time = as.numeric(as.character(all_t$time))
+all_t$fire = as.numeric(as.character(all_t$fire))
+all_t$face = as.numeric(as.character(all_t$face))
+all_t$brother= as.numeric(as.character(all_t$brother))
+
+
+all_t_nona <- na.omit(all_t)
+all_t[is.na(all_t)] = 0
+
+
+library(factoextra)
+fviz_nbclust(all_t , kmeans,
+             method = 'gap_stat')
+             
+             
+set.seed(123)
+km.res <- kmeans(all_t, 3, nstart = 25)
+fviz_cluster(km.res, data = all_t, 
+             ellipse.type = "convex",
+             palette = "jco",
+             repel = TRUE,
+             ggtheme = theme_minimal())
+
