@@ -1,0 +1,10 @@
+1) Alimov Alexander
+2) Dataset - The European Social Survey (ESS) , an academically driven cross-national survey that has been conducted across Europe since its establishment in 2001. This survey measures the attitudes, beliefs and behaivour patterns of diverse populations in more than thirty nations. 
+We are working with 8th wave of this survey (2016 year). Our dataset consists of 44387 observations and 536 variables. When we use filter by Great Britain we are getting dataset of 1959 observations
+3) Report and fitting req:
+- Firstly i want to thank you for your course and they way u wrote our assignment. It's fun)
+- As for requirements i suppose i did ok for most of them. However i understand that my models from tasks 3 and 4 are not very good. I tried to use different variables especially in regression as well as taking log(dep variable). But the highest r squared i achieved is 0.12 which is not very good. And model itself is kinda useless because it consists of years of education and time on Internet. There were no more variables to add on this model due to logic. The rest of the code (i hope) is OK. At lest it works :)
+- I also faced some difficulties. Firstly with kniting... I didn't figuire it out but looks like one of «engines» of LATEX refuses to work and gives me error with a massage to update it. (update didn't help so i had to change LATEX engine in global options). Second problem i faced was Error: `x` and `labels` must be the same type' massage while i was doing some operations with datasets. I wrote short comment in the code. I still didn't get what causes the error: most probable cause is my hands, but Stackoverflow told me such may happen and there is some issue with labeled data using «dplyr», «haven» and «Hmisc»
+
+
+

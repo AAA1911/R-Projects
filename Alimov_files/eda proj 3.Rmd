@@ -1,0 +1,69 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+data<-read.csv('ESS1-7e01.csv',header=TRUE,stringsAsFactors=FALSE)
+wkhtot
+summary(data$wkhtot) 
+skimr::skim(data$wkhtot)
+mean(data$wkhtot, na.rm = TRUE)
+hist(data$wkhtot)
+boxplot(data$wkhtot)
+data$wkhtot[data$wkhtot > 200] = 0
+summary(data$wkhtot) 
+skimr::skim(data$wkhtot)
+hist(data$wkhtot)
+boxplot(data$wkhtot)
+
+njbspv
+summary(data$njbspv) 
+skimr::skim(data$njbspv)
+hist(data$wkhtot)
+boxplot(data$wkhtot)
+data$njbspv[data$njbspv > 900] = 0
+summary(data$njbspv) 
+skimr::skim(data$njbspv)
+boxplot(data$njbspv)
+hist(data$njbspv)
+which.max(data$njbspv)
+data$njbspv[32519] = 0
+
+
+eduyrs
+summary(data$eduyrs) 
+skimr::skim(data$eduyrs)
+hist(data$eduyrs)
+boxplot(data$eduyrs)
+data$eduyrs[data$eduyrs > 60] = 0
+summary(data$eduyrs) 
+skimr::skim(data$eduyrs)
+boxplot(data$eduyrs)
+hist(data$eduyrs)
+
+hhmmb
+summary(data$hhmmb) 
+skimr::skim(data$hhmmb)
+hist(data$hhmmb)
+boxplot(data$hhmmb)
+data$hhmmb[data$hhmmb > 25] = 0
+summary(data$hhmmb) 
+skimr::skim(data$hhmmb)
+boxplot(data$hhmmb)
+hist(data$hhmmb)
+
+
+
+
+
+
+
+
+
+
+wkhtot ~ + njbspv eduyrs ~ netusoft
+wkhtot Total hours normally worked per week in main job overtime included
+njbspv   Number of people responsible for in job
+netustm   Internet use, how much time on typical day, in minutes
+hhmmb  Number of people living regularly as member of household
