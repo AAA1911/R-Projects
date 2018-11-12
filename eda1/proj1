@@ -1,0 +1,176 @@
+---
+title: "EDA 1"
+author: "Alimov A A"
+date: "October 21, 2018"
+output:
+  html_document:
+    df_print: paged
+  message=FALSE: null
+---
+
+
+```{r, echo=TRUE}
+library(XML)
+library(dplyr)
+library(plyr)
+library(RCurl)
+library(jsonlite)
+
+
+# To extract data we can use these command and then loops as it was given on wiki pages for us. 
+J <- fromJSON(readLines("factbook.json"))
+str(J,max.level=2)
+cntrys = NULL
+for(i in 1:259)
+{
+  print(i)
+  cntrys[i] = J$countries[[i]]$data$name
+}
+# So i can use Json to parse and get data. But i want to use data directly from the web page. To be able to get ISO codes properly, instead of using json, i will parse CIA site to extract data. 
+# Here i am downloading ISO codes for countries frm Factbook
+m = getURL('https://www.cia.gov/library/publications/the-world-factbook/appendix/appendix-d.html')
+d = readHTMLTable(m, header = 8)
+a = d[["NULL"]]
+aa = data.frame(a)
+aaa <- a[-c(1:8), ]
+aaaa = aaa[complete.cases(aaa), ]
+CtryCodes = data.frame(aaaa$V1, aaaa$V2)
+CtryCodes = CtryCodes[-c(1), ]
+colnames(CtryCodes)[1] <- "Country"
+
+
+# Here i am downloading my variables which were also taken from the Factbook in advance and saved as txt files 
+Military2 = read.delim('var2.txt', header = FALSE, sep = "/")
+colnames(Military2)[1] <- "Country"
+AllData = join(x = CtryCodes, y = Military2, by = "Country", match = "all")
+colnames(AllData)[2] <- "ISO"
+colnames(AllData)[3] <- "MILITARY EXPENDITURES"
+
+M_age = read.delim('median_age.txt', header = FALSE, sep = "/")
+colnames(M_age)[1] <- "Country"
+colnames(M_age)[2] <- "Median age"
+AllData = join(x = AllData, y = M_age, by = "Country", match = "all")
+
+GDP = read.delim('GDP.txt', header = FALSE, sep = "/")
+colnames(GDP)[1] <- "Country"
+colnames(GDP)[2] <- "GDP"
+AllData = join(x = AllData, y = GDP, by = "Country", match = "all" )
+
+# And here is the 2nd reason why i don't use json - regions. For example, 
+# if we use json to check the region of Afghanistan, json will give us:
+J$countries$afghanistan$data$geography$map_references
+
+# Or if we will go for map referenses we will get this:
+J[["countries"]][["afghanistan"]][["data"]][["geography"]][["location"]]
+# This is not very convenient because we will have to clear everything after the region itself
+
+Regions_CIA = read.delim('Regions_CIA', header = FALSE, sep = "/")
+AllData = data.frame(AllData, Regions_CIA)
+colnames(AllData)[6] <- 'Region'
+Military1 = AllData$MILITARY * AllData$GDP
+AllData = data.frame(AllData, Military1)
+colnames(AllData)[7] <- 'Military absolute'
+# And if we use this code and look for region of Afghanistan:
+AllData[1, ]
+# We will get exact region of Asia - Southern Asia without any addition information 
+
+write.csv(AllData, 'Dataset.csv')
+
+
+m = aggregate(AllData[, 4,6],list(AllData$Region), mean, na.rm = TRUE)
+m = m[-1,]
+m
+
+
+library(ggplot2)
+ggplot(m ,aes( m$Group.1, m$x)) + 
+  geom_bar(stat="identity",aes(fill = "Median Age" ), data = m , alpha = 0.5)+
+  labs( x = 'Region', y = 'Age', title = 'Mean Median age by Region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1) )
+
+# Here we can explore median age by whole region. Average person from Europe will be older comparing with any other part of the World. Africa is on the last place with average median of age slightly higher then 20 years which.
+
+m = aggregate(AllData[, 3,6],list(AllData$Region), mean, na.rm = TRUE)
+m = m[-1,]
+m  
+ggplot(m ,aes( m$Group.1, m$x)) +
+  geom_bar(stat="identity",aes(fill = "% of DGP" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'Military Expendutires %', title = 'Mean Military Expendutires in % by Region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# This graph allows us to see % of DGP which countries of each regions spend on Military forces. It's not a surprise that countries of Middle east are leaders with their oil revenues and proxy wars happening there for a couple of decades. 
+m = aggregate(AllData[, 7,6],list(AllData$Region), mean, na.rm = TRUE)
+m = m[-1,]
+m  
+ggplot(m ,aes( m$Group.1, m$x)) +
+  geom_bar(stat="identity",aes(fill = "$" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'Military Expendutires Absolute', title = ' Mean Military Expendutires absolute by Region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+# Here we can see means for sums of amounts invested in Military Expendutires. North America is on the top mostly because of the USA, as well as Eastern Asia led by China, and militarized North Korea
+m = aggregate(AllData[, 7,6],list(AllData$Region), sum, na.rm = TRUE)
+m = m[-1,]
+m  
+ggplot(m ,aes( m$Group.1, m$x)) +
+  geom_bar(stat="identity",aes(fill = "$" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'Military Expendutires Absolute', title = 'Sum of Military Expendutires absolute by Region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+# Here we can explore absolute sums. Here we can see Europe is on the 2nd place. This probably mean that most of the European countries dont spend so much but there are several who spend a lot.
+
+
+# Now i want to see countries - leaders and outsiders of each regions for our chosen variables
+library(data.table)
+m = setDT(AllData)[, .SD[which.max(GDP)], Region]
+ggplot(m ,aes( m$Country, m$GDP)) +
+  geom_bar(stat="identity",aes(fill = "$" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'GDP', title = 'Country with max amount of GDP for each region' )+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+m = setDT(AllData)[, .SD[which.min(GDP)], Region]
+ggplot(m ,aes( m$Country, m$GDP)) +
+  geom_bar(stat="identity",aes(fill = "$" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'GDP', title = 'Country with min amount of GDP for each region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+m = setDT(AllData)[, .SD[which.max(Median.age)], Region]
+ggplot(m ,aes( m$Country, m$Median.age)) +
+  geom_bar(stat="identity",aes(fill = "Age" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'Years', title = 'Country with max median age for each region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+m = setDT(AllData)[, .SD[which.min(Median.age)], Region]
+ggplot(m ,aes( m$Country, m$Median.age)) +
+  geom_bar(stat="identity",aes(fill = "Age" ), data = m , alpha = 0.5)+
+  labs(x = 'Region', y = 'Years', title = 'Country with min median age for each region')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+# Min and max for GDP considering the whole World
+m = setDT(AllData)[, .SD[which.max(GDP)]]
+m
+n = setDT(AllData)[, .SD[which.min(GDP)]]
+n
+# Min and max for Median age considering the whole World
+m = setDT(AllData)[, .SD[which.max(Median.age)]]
+m
+n = setDT(AllData)[, .SD[which.min(Median.age)]]
+n
+# Min and max for Military Expendutires in % considering the whole World
+m = setDT(AllData)[, .SD[which.max(AllData[3])]]
+m
+n = setDT(AllData)[, .SD[which.min(AllData[3])]]
+n
+# Min and max for Military Expendutires absolute considering the whole World
+m = setDT(AllData)[, .SD[which.max(AllData[7])]]
+m
+m = setDT(AllData)[, .SD[which.min(AllData[7])]]
+n
+
+```
+
+
+
+
+
