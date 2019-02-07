@@ -1,0 +1,213 @@
+---
+title: "ALM2, HW1"
+author: "Alimov A.A"
+date: "01 02 2019"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(car)
+library(sm)
+library(haven)
+
+data = read_sav("health91.sav")
+
+# Task 1
+
+par(mfrow=c(1,2))
+hist(data$HAPPY, nclass=15, probability=T, main='Histogram with Density Estimation', ylab='Density', xlab='Happy', xlim=c(5, 35), ylim=c(0.00, 0.15))
+lines(density(data$HAPPY), col='red', lwd=2)
+sm.density(data$HAPPY, display="se", model="normal", ylab='Density', xlab='Happy')
+title("Density estimation")
+
+
+# Well i'm not sure but for me left plot of HAPPY distribution 
+# looks like something similar to left skewed distribution 
+```
+
+
+```{r}
+# Task 2
+qqPlot(data$HAPPY, main = "Quantile-comparison plot for Happy", ylab='Happy')
+boxplot(data$HAPPY, main='Boxplot for Happy', col="yellow", ylab='Happy')
+boxplot(data$HAPPY ~ data$SEX, data = data, col="yellow", 
+        main='Side-by-side boxplots for HAPPY for men and women', ylab='Happy')
+        
+# About the plots ... As far as i see either i made a mistake 
+# or boxplots are nearly the same (except some 
+# observations below 15 quartile) which means that 
+# women and men are pretty equaly happy.
+```
+
+
+```{r}
+# Task 3
+par(mfrow=c(1,2))
+plot(data$HHINCOME , data$HAPPY, main='HHINCOME+HAPPY original', xlab='HHINCOME', ylab='Happy', col='red', pch=19)
+plot(jitter(data$HHINCOME, factor=2), jitter(data$HAPPY, factor=5), main='HHINCOME+HAPPY, jitter',xlab='HHINCOME',ylab='HAPPY', col='red', pch=19) 
+
+# From my point of view definately there is a connection 
+# between 2 variables:
+# with HHINCOME increase there is a growing in
+# Happy, and jitter helps us to group
+# observations, making it easier to see 
+# noticeable pattern between them.
+```
+
+
+```{r}
+# Task 4
+
+joint<-cbind(data$HAPPY,data$HHINCOME)
+sm.density(joint, display="slice")
+
+# Well there is an ussue with plotting smth more then what
+# i'v got due to some issues 
+# connected with Rpanel package and Bwidget which 
+# i can't fix now (but, honesly i tried)
+# So i'mn forced to stay with this visualisation only 
+# which shows that distribution we 
+# have looks quite normal but skewed left
+```
+
+
+```{r}
+# Task 5
+
+scatterplot(data$HAPPY~data$HHINCOME|data$CLASS, data = data, xlab='Income',ylab='Happy')
+
+coplot(data$HAPPY~data$HHINCOME|data$CLASS+data$SEX,panel = panel.car, lwd=3, cex=0.4,col = 'red', xlab='Income',ylab='Happy')
+
+# Well its kinda hard for me to see smth meaningful,
+# mb if i try jitter i will
+# be able to observe something
+
+coplot(jitter(data$HAPPY)~jitter(data$HHINCOME)|data$CLASS+data$SEX,panel = panel.car, lwd=3, cex=0.4,col = 'red', xlab='Income',ylab='Happy')
+
+# So it' still not clear for me... Maybe we can see 
+# that there is no difference between distributions 
+# within different groups we have.
+```
+
+
+```{r}
+# Task 6
+
+# So here i should use 'power transformations' 
+# first i'll try to take log like we did in seminar 1
+log.Happy<-log(data$HAPPY, 10)
+sm.density(data$HAPPY, model="normal")
+sm.density(log.Happy, model="normal")
+# well i can't say that log is usefull, i can try smth else like
+# BoxCox transformation via powerTransform
+test = powerTransform(data$HAPPY)
+sm.density(test[["y"]], model="normal")
+# again it's not much better, what else can i do...? Power?
+power = data$HAPPY**2
+sm.density(power, model="normal")
+# yes, this time it's look better
+
+
+split.screen(figs=c(1,2))
+screen(1)
+qqPlot(data$HAPPY,ylab='Data Quantile',xlab='Normal Quantile',
+       main="Original Happy")
+screen(2)
+qqPlot(power, ylab='Data Quantile',xlab='Normal Quantile',
+       main="Happy in power of 2")
+close.screen(all = TRUE)
+```
+
+```{r}
+# Task 7
+
+coplot(power~data$HHINCOME|data$CLASS+data$SEX,panel = panel.smooth, lwd=3, cex=0.4,col = 'red', xlab='Income',ylab='Happy')
+
+# To check my initial Happy is better then Happy ** 2
+Linear.model<-lm(data$HAPPY~data$HHINCOME)
+summary(Linear.model)
+Linear.model2<-lm(data$HAPPY~data$HHINCOME + data$SEX + data$CLASS)
+summary(Linear.model2)
+
+
+Linear.model<-lm(power~data$HHINCOME)
+summary(Linear.model)
+Linear.model2<-lm(power~data$HHINCOME + data$SEX + data$CLASS)
+summary(Linear.model2)
+
+# Well as far as i can see ffrom summary of each model, 
+# HHINCOME differs not so much, only by 0,02.
+
+anova(Linear.model2)
+Anova(Linear.model2)
+
+# Tests differs by significance of Sex, it' less significant 
+# according to car package test, but still significant on 0.05.
+# But accorind to the task i should drop it?
+
+Linear.model3<-lm(power~data$HHINCOME + data$CLASS)
+summary(Linear.model3)
+
+# So we see our model and all our variables are significant, but we 
+# explained inly 0,04 of variance
+# And the equation is:
+# Happy^2 = 515.58 + 12.88 * HouseHold Income - 8.47 Class
+```
+
+
+```{r}
+# Task 8
+
+library(qvcalc)
+
+class = as.factor(data$CLASS)
+qvtype<-qvcalc(lm(power~HHINCOME+SEX+class, data=data), "class")
+plot(qvtype,intervalWidth = 2, cex=1.5, main="Quasi SEs")
+# We see there is obviously a difference in averages, classes 1 and 2 
+# are the only classes which are alike.
+```
+
+
+
+```{r}
+# Task 9
+# Here i am confused a bit cuz we did transformation for happy, so i will stick 
+# to transformed variable not the initial one.
+
+full = lm(power~data$HHINCOME+data$CLASS + data$HHINCOME*data$CLASS )
+summary(full)
+reduced = lm(power~data$HHINCOME+data$CLASS)
+summary(reduced)
+anova(reduced, full)
+# So, to obtain the F-test we should look at p test values.
+# Based on p value we fail to reject initial hypothesis that 
+# full model worser (because 0.05 > 0.008) So we cant drop
+# interaction variable now.
+
+```
+
+
+```{r}
+# Task 10
+#NOTE : i have no idea why, but this code is not working
+# for me anywhere except console so i apologize but the only 
+# thing i can do here is add screenshot from console. 
+#data(Prestige)
+#attach(Prestige)
+#model4 <- lm(prestige~type+education)
+#qvtype<-qvcalc(model4, "type")
+#plot(qvtype,intervalWidth = 2, cex=1.5, main="Quasi SEs")
+
+```
+
+![](Task10.png)
+
+
+
