@@ -1,0 +1,234 @@
+---
+title: "RDD HW"
+author: "Alimov A.A"
+date: "14 02 2019"
+output: pdf_document
+
+---
+
+```{r}
+library(foreign)
+library(dplyr)
+library(ggplot2)
+library(rddtools)
+```
+
+```{r}
+data <- read.dta('clark.dta')
+summary(data)
+```
+
+1.Scatter-plot of the change in the pass rate on the vote in favor ofGM status.
+
+```{r}
+plot(data$dpass, data$vote, 
+     main = 'Scatterplot of the change in the pass rate on the vote in favor of GM status', cex.main = 0.75,
+     xlab = 'The change in the pass rate',
+     ylab = 'The vote in favor of GM status')
+
+
+ggplot(data, aes(x = vote, y = dpass, color = as.factor(win))) +
+  geom_point() + 
+  theme_minimal() + 
+  geom_smooth(method = lm) +
+  labs(title = 'Scatterplot of the change in the pass rate on \n the vote in favor of GM status')
+```
+
+
+
+2.
+
+```{r}
+data.res <- data %>% filter(vote >= 15 & vote <= 85)
+l1 <- lm(dpass ~ win, data = data.res)
+l2 <- lm(dpass ~ win + vote, data = data.res)
+l3 <- lm(dpass ~ win + lose_vote + win_vote, data = data.res)
+l5 <- lm(dpass ~ win + lose_vote + win_vote + win_vote_2 + lose_vote_2, data = data.res)
+
+summary(l1)
+summary(l2)
+summary(l3)
+summary(l5)
+```
+
+
+a.
+
+Clark uses [15, 85] interval cuz it includes schools that have approximately equal characteristics. Schools outside this range differ in their characteristics and are less likely to survive. 
+Description of regression obtained:
+- column 1 describes the mean improvement difference between winners and losers;
+- column 2 adds a control for vote share;
+- column 3 interacts vote share with win;
+- column 4 for weights according to the size of the school exam-taking cohort
+- column 5 he uses a quadratic vote share control function and the estimated impact of winning falls
+
+
+Models include the functions of the share of votes, both by themselves and in conjunction with the win / loss variable, because the interaction variables show a different inclination or regression lines, while the voting variable itself is responsible for the meaningful meaning of the regression line.
+The interaction of win and vote is necessary in order to check whether the success of vote impacts somehow the win outcome more than it’s absence. The squared of vote variable should make this interaction even more pronounced.
+
+b.
+
+```{r}
+data.ex1 <- data %>% filter(vote >= 10 & vote <= 90)
+```
+
+```{r, results = 'asis', echo = FALSE}
+l1 <- lm(dpass ~ win, data = data.ex1)
+l2 <- lm(dpass ~ win + vote, data = data.ex1)
+l3 <- lm(dpass ~ win + lose_vote + win_vote, data = data.ex1)
+l5 <- lm(dpass ~ win + lose_vote + win_vote + win_vote_2 + lose_vote_2, data = data.ex1)
+summary(l1)
+summary(l2)
+summary(l3)
+summary(l5)
+
+```
+
+
+```{r}
+data.ex2 <- data %>% filter(vote >= 40 & vote <= 60)
+
+l1 <- lm(dpass ~ win, data = data.ex2)
+l2 <- lm(dpass ~ win + vote, data = data.ex2)
+l3 <- lm(dpass ~ win + lose_vote + win_vote, data = data.ex2)
+l5 <- lm(dpass ~ win + lose_vote + win_vote + win_vote_2 + lose_vote_2, data = data.ex2)
+summary(l1)
+summary(l2)
+summary(l3)
+summary(l5)
+
+```
+
+In this case, we got all the insignificant variables, except for the first model. Also, according to F test, all models except the first one are no better than a model for a constant. 
+
+3.
+
+```{r}
+l1 <- lm(passrate2 ~ win, data = data.res)
+l2 <- lm(passrate2 ~ win + vote, data = data.res)
+l3 <- lm(passrate2 ~ win + lose_vote + win_vote, data = data.res)
+l5 <- lm(passrate2 ~ win + lose_vote + win_vote + win_vote_2 + lose_vote_2, data = data.res)
+summary(l1)
+summary(l2)
+summary(l3)
+summary(l5)
+
+
+```
+We see that when using another dependent variable, our model completely loses its explanatory capacity, according to the F test, our model becomes no better than the constant model and all coefficients become statistically inconceivable (except for one in model number 3).
+
+Let's try to build graphs to see the changes between the models. First, we plot the dependent variable dpass.
+
+```{r}
+data$win_f <- data$win == 1
+model <- lm(dpass ~ win_f + vote, data = data)
+fit_model <- lm(dpass ~ vote + win_f, data = data)
+fit2_model <- lm(dpass ~ vote + I(vote^2) + win_f, data = data) 
+predfit_model <- predict(fit_model, data) 
+predfit2_model <- predict(fit2_model, data) 
+
+ggplot(data, aes(x = vote, y = predfit_model)) +
+  geom_line(col = "lightblue", size = 2) + 
+  geom_line(aes(x = vote, y = predfit2_model),
+            col = "darkblue", size = 2, lty = 3) + 
+  geom_point(aes (x = vote, y = dpass)) + 
+  xlab("Vote results") +
+  ylab("Difference in passrate") +
+  theme_minimal() +
+  labs(title = 'Scatterplot of the change in the pass rate on \n the vote in favor of GM status')
+
+ggplot(data, aes(x = vote, y = dpass, color = win_f)) + 
+  geom_point() +
+  scale_color_manual(values = c('blue', 'darkblue')) +
+  stat_smooth(method = loess) +
+  theme_minimal() +
+  labs(title = 'Scatterplot of the change in the pass rate on \n the vote in favor of GM status \n with using factor(win)')
+
+
+```
+
+Now let's try to reproduce the same graphs for the dependent variable passrate2. Because the difference in the previous graphs is almost imperceptible and can be loaded with the help of the RDD.
+
+```{r}
+clark_model <- lm (passrate2 ~ win_f + vote, data = data)
+fit_model <- lm(passrate2 ~ vote + win_f, data = data)
+fit2_model <- lm(passrate2 ~ vote + I(vote^2) + win_f, data = data) 
+predfit_model <- predict(fit_model, data)
+predfit2_model <- predict(fit2_model, data)
+ggplot(data, aes(x = vote, y = predfit_model)) +
+  geom_line(col = "red", size = 2) + 
+  geom_line(aes(x = vote, y = predfit2_model),
+            col = "blue", size = 2, lty = 3) + 
+  geom_point(aes (x = vote, y = passrate2)) + 
+  xlab("Vote results") +
+  ylab("Passrate 2 years after") +
+  theme_minimal() +
+  labs(title = 'Scatterplot of the  the pass rate 2  after on \n the vote in favor of GM status')
+
+
+ggplot(data, aes(x = vote, y = passrate2, color = win_f)) + 
+  geom_point() +
+  scale_color_manual(values = c('blue', 'darkblue')) +
+  stat_smooth(method = loess) +
+  theme_minimal() +
+  labs(title = 'Scatterplot of the  the pass rate 2 yaers after on \n the vote in favor of GM status \n with using factor(win)')
+
+```
+
+It is seen visually that passrate2 does not show a clear difference. Therefore, according to the theory of RDD, it can be assumed that in this case it is not applicable.
+
+```{r}
+rdd <- rdd_data(y = data$dpass, x = data$vote, cutpoint = 50)
+bandwidth<-rdd_bw_ik(rdd) 
+model.rdd <-rdd_reg_np(rdd_object = rdd, bw = bandwidth) 
+summary(model.rdd)
+
+
+plot(model.rdd, xlab = 'Vote', ylab = 'Dpass')
+```
+
+
+After constructing the model our cutpoint is still significant. However, it is also worth noting that $R^2$ is very small, because the difference between the two groups separated by a cutpoint is extremely small.
+
+4.
+
+passrate0 variable cannot be a dependent variable, because it is measured before the time of voting, so the variables associated with it can hardly influence. That is why passrate0 cannot depend on the voting results, since it is measured before it.
+
+```{r}
+bw <- rdd_bw_ik(rdd)
+reg_out <- rdd_reg_np(rdd_object = rdd, bw = bw) 
+plotSensi(reg_out, from = 0.1, to = 60, by = 0.1)
+plotPlacebo(reg_out)
+```
+
+5.
+
+Another sensitivity analysis for RDD uses non-discontinuity cutoffs (e.g. at vote = 45%) to test whether this “placebo" treatment produces any significant results. We try different cutoffs and compare your placebo estimates to the estimated treatment effect from above.
+
+```{r}
+placebo <- rdd_data(y = data$dpass, x = data$vote, cutpoint = 45) 
+plot(placebo, xlab = 'Vote', ylab = 'Dpass', main = 'Cutoff = 45')
+reg_para1 <- rdd_reg_lm(placebo, order = 5) 
+reg_para2 <- rdd_reg_lm(placebo, order = 5) 
+reg_para3 <- rdd_reg_lm(placebo, order = 5) 
+reg_para4 <- rdd_reg_lm(placebo, order = 5) 
+reg_para5 <- rdd_reg_lm(placebo, order = 5) 
+reg_para1
+plot(reg_para1, xlab = 'Vote', ylab = 'Dpass', main = 'Polynomial order:  5')
+reg_para2
+plot(reg_para2, xlab = 'Vote', ylab = 'Dpass', main = 'Polynomial order:  4')
+reg_para3
+plot(reg_para3, xlab = 'Vote', ylab = 'Dpass', main = 'Polynomial order:  3')
+reg_para4
+plot(reg_para4, xlab = 'Vote', ylab = 'Dpass', main = 'Polynomial order:  2')
+reg_para5
+plot(reg_para5, xlab = 'Vote', ylab = 'Dpass', main = 'Polynomial order:  1')
+bw <- rdd_bw_ik(placebo)
+reg_nonpara <- rdd_reg_np(rdd_object = placebo, bw = bw) 
+print(reg_nonpara)
+plotSensi(reg_nonpara, from = 0.05, to = 1, by = 0.1)
+plotPlacebo(reg_nonpara)
+```
+
+
+
