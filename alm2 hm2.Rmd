@@ -1,0 +1,233 @@
+---
+title: "Untitled"
+author: "Alimov A.A"
+date: "11 02 2019"
+output: pdf_document
+---
+```{r}
+library(car)
+library(sm)
+
+data = Prestige
+
+```
+
+Point 1. Nonlinearity
+
+```{r}
+# Task 1.1
+# I hope it's ok that i will do all addings on a 1 graph 
+# not to copy several times. 
+
+# Scatterplot, regression line - red one,
+# lowesssmooth - green.
+
+plot(data$prestige,data$income)
+abline(lm(data$income~data$prestige), col = 'red')
+identify(data$prestige,data$income, row.names(data))
+lines(lowess(data$prestige,data$income), col = 'green')
+
+# Conditioning plot
+coplot(data$prestige~data$income|data$type, panel = panel.smooth)
+
+# Well i think it's clear fron the plot that there are different 
+# reltionships between our income(x) and prestige(y) when we 
+# change types. It may be seen, for example, on changes in curves.
+# Types 'bc' and 'wc' visualy are not so different, but it's easy
+# to notice that 'prof' differs from the rest alot.
+```
+
+
+```{r}
+# Task 1.2
+m1 = lm(data$prestige~ data$income+data$education+data$type)
+summary(m1)
+crPlots(m1)
+
+# Here we can easily observe that relation between our dependent
+# variable prestige and income is not linear (differences in lines)
+# So we can try to deal with this porlbem somehow in point 1.3
+
+```
+
+
+```{r}
+# Task 1.3
+# To deal with it we can try some powertransformation.
+# Let's try several transformations and
+test1 = data$income**2
+test2 = log(data$income)
+test3 = 1/data$income
+
+m1 = lm(data$prestige~ test1+data$education+data$type)
+m2 = lm(data$prestige~ test2+data$education+data$type)
+m3 = lm(data$prestige~ test3+data$education+data$type)
+
+crPlots(m1)
+crPlots(m2)
+crPlots(m3)
+# From my point of view logarithmic transformation here
+# gives the best result. So i'll try to stay with this 
+# model, beacause, well, i think that here we must do smth
+# with income, we can't keep it as it is:
+
+test2 = log(data$income, base = 2)
+m2 = lm(data$prestige~ test2+data$education+data$type)
+crPlots(m2)
+summary(m2)
+
+
+
+m1 = lm(data$prestige~ data$income+data$education+data$type)
+summary(m1)
+# And i am sure that this model is better, firstly because of crPlots,
+# secondly because of summary, model with transformed income gives
+# higher R squared, additinal significant variable, lower RSE so i think
+# this is enough to prove that transformed variable is better.
+```
+
+Point 2. Model Selection
+
+```{r}
+# Task 2.4
+
+set.seed(100)
+data=data.frame(matrix(rnorm(2600), 100, 26))
+data[1:10,1:5]
+
+mod=lm(X1~., data=data)
+summary(mod)
+
+anova(lm(X1~., data=data))
+
+# As we can see, ANOVA shows here only 2 variables are significant: X16, X19
+
+
+# Task 2.5
+
+
+step(mod)
+
+mod2 = lm(formula = X1 ~ X13 + X16 + X18 + X19 + X20 + X21 + X24, data = data)
+
+# After iterating mod gives me model with more then 2 variables, lets put in ANOVA
+
+anova(lm(formula = X1 ~ X13 + X16 + X18 + X19 + X20 + X21 + X24, data = data))
+
+# So we see after going trough iterations and variables selection i came up with 
+# model better as it was in the beginning. There are more significant variables,
+```
+
+Point 3. Ridge
+
+
+```{r}
+library(tidyverse)
+library(broom)
+library(glmnet)
+library(dplyr)
+library(ridge)
+library(MASS)
+library(lmridge)
+
+
+data3 = Ericksen
+lambdas <- seq(0,100,0.1)
+
+# simpe lm model
+mod3.1 = lm(data3$undercount~data3$minority+data3$crime+data3$poverty+data3$language+data3$highschool+data3$housing+ data3$conventional)
+summary(mod3.1)
+crPlots(mod3.1)
+
+# from the plots we can see there is an issue with collinearity for some variables in the model like language,
+# conventional ... so with the help of ridge we can try to deal with it.
+
+# ridge with cv GLMNET
+# NOTE: so here i am using glm net with my own lambdas an cv. I hope this is what is expected from us.
+# This is kinda my function because here i will iterate with lambda to find optimal variable. 
+# And also i will try to perform some cv.
+
+# starting with glm 
+y <- data3$undercount
+x <- Ericksen %>% dplyr::select(minority, crime, poverty,language, highschool, housing, conventional) %>% data.matrix()
+fit <- glmnet(x, y, alpha = 0, lambda = lambdas)
+predict(fit, s = 0, type = 'coefficients') # so these are our coefficients for glm ridge model
+plot(fit,xvar="lambda",label=TRUE)
+# on the plot we can see kind of grid search of optimal lambda values.
+# When lambda (here actually not lambda but log of lambda accoring to package specifications, but here it's 
+# not so important) approaches 4, all varibles are nrly 0. If we decrease lambda we can see how our vatiables
+# grow away from zero. ALso the sum of squares grow.
+
+cv_fit <- cv.glmnet(x, y, alpha = 0, lambda = lambdas)
+plot(cv_fit)
+# We can look at what lambda coefficient is optimal as well as what happens with errors when we 
+# increase lambda. It grows. I am not 100 sure but i suppose it happens because the essense of
+# ridge regression - adding lambda coefficient on the main diagal of features matrix W. 
+# Because of that we should try to stick with minimal lambda. (It can be seen from plot as well)
+
+
+# Here i am trying to compute r squared also to be sured with model quality
+opt_lambda <- cv_fit$lambda.min
+opt_lambda # Btw here is our optimal lambda according to glm
+
+fit <- cv_fit$glmnet.fit
+y_predicted <- predict(fit, s = opt_lambda, newx = x)
+# to compare models
+sst <- sum((y - mean(y))^2)
+sse <- sum((y_predicted - y)^2)
+rsq <- 1 - sse / sst
+rsq # And this is our R squared
+
+
+
+# Amd here is our ridge from MASS package.
+y = data3$undercount
+m1 = lm.ridge(y~data3$minority+data3$crime+data3$poverty+data3$language+data3$highschool+data3$housing, data3$conventional, data = data3)
+m1 # coefficients for lm.ridge.
+
+
+# Ridge with lambda iteration
+mod3.3 = lm.ridge(data3$undercount~data3$minority+data3$crime+data3$poverty+data3$language+data3$highschool+data3$housing, data3$conventional, data = data3, lambda = lambdas)
+library(broom)
+td <- tidy(mod3.3)
+head(td) # this shows results of iteration trough lambda. 
+plot(mod3.3)
+# Well i rly hoped that i would be able to compare those plots but it turns out that
+# in lm.ridge algorithm us using lambda itself while glm uses log(lambda). But anyway here
+# we can also see that nrly all variables starts to approach zero when we increase our lambda.
+
+# and here we can compare coefficint of lm ridge and glm ridge
+
+predict(fit, s = 0, type = 'coefficients')
+m1
+# Here there is an  interesting things i can mention.
+# We can see that coefficients of some of our variables like miority
+# and crime are close in both packages while others are rly different.
+# I suppose that is because those crime and minority fit linearity the most 
+# so we do not need to add huge coeffs to them. To be sured i want to take a look
+# at crplots again
+
+crPlots(mod3.1)
+# I think i am right here about variables.
+
+
+
+# So, comparing the packages, they show pretty same results considering that on glm case we are dealing with
+# log transfomrationf of lambda and lambda itslef in lm.ridge. It can be also more less easyliy observed on plots
+# of grid search of optimal lambda.
+# I also can say that mass package and lm.function definateli is NOT that best choice for doinr ridge.
+# Packages like glm and ridge gives better opportunities, like getting friendly looking summary of model in ridge package
+# via ridge package, or calculating y_predicted in glm (i don't know mb it's my fault but i didn't find a way to get
+# predicted y in lm.ridge, so i couldm't calculate sse and R sq like i did in glm to compare those models on the level
+# of R squared values)
+
+# As for ridge regression itself, well i am usre in this case with Ericksen data it is essential to normalize
+# those not linear variables which we draw previosuly. Moreover if we compare R squared of simple lm and ridge lm
+# from glm, ridge is slighty better (0.69 for ridge vs 0.65 for lm), + errors in glm should be lower because of the variabe normalization 
+# we are performing
+
+
+
+
+```
+
