@@ -30,7 +30,7 @@ for(i in 1:259)
 # Here i am downloading ISO codes for countries frm Factbook
 m = getURL('https://www.cia.gov/library/publications/the-world-factbook/appendix/appendix-d.html')
 d = readHTMLTable(m, header = 8)
-a = d[["NULL"]]
+a = d[["Cross-Reference List of Country Data Codes"]]
 aa = data.frame(a)
 aaa <- a[-c(1:8), ]
 aaaa = aaa[complete.cases(aaa), ]
